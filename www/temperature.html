@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		
+		<title>Mathias temperaturmätningar</title>
+
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(function() {
+				var dataSeries = [],
+				yAxisOptions = [],
+				seriesCounter = 0,
+				names = ['Utetemp', 'Föråds temp', 'Arbetrsrum', 'Sovrum','Anlis rum','Gästrum'],
+				temps = ['Max', 'Min', 'Avg'],
+				colors = Highcharts.getOptions().colors;
+
+				var query1 = "SELECT TimeStamp,Temperature FROM utetemp LIMIT 5000;";
+                                var query1b = "SELECT TimeStamp,Temperature FROM foradstemp LIMIT 5000;";
+ 				var query2 = "SELECT TimeStamp,Temperature FROM arbetsrum LIMIT 5000;";
+				var query3 = "SELECT TimeStamp,Temperature FROM sovrum LIMIT 5000;";
+				var query4 = "SELECT TimeStamp,Temperature FROM anlis_rum LIMIT 5000;";
+                                var query5 = "SELECT TimeStamp,Temperature FROM guestroom LIMIT 5000;";
+				var query6 = "SELECT TimeStamp,MAX(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
+				var query7 = "SELECT TimeStamp,MIN(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
+				var query8 = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
+//				var query9 = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp),MINUTE(TimeStamp) ORDER BY TimeSTamp LIMIT 5000;";
+				var tempnow = "SELECT TimeStamp,Temperature FROM utetemp ORDER BY TimeStamp DESC LIMIT 1;";
+				var rangequery = "SELECT TimeStamp,MIN(Temperature),MAX(Temperature) FROM utetemp GROUP BY DAY(TimeStamp) ORDER BY TimeStamp;";
+
+				var avgquery = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY DAY(TimeStamp) ORDER BY TimeStamp;";
+
+				var queries = new Array(query1,query1b,query2,query3,query4,query5);
+				var queriesB = new Array(query6,query7,query8);
+				var jsonstr = JSON.stringify(queries);
+				var jsonstrB = JSON.stringify(queriesB);
+				var jsonstr2 = JSON.stringify(rangequery);
+				var jsonstr0 = JSON.stringify(tempnow);
+				var url = "/dev/temperature.php";
+				var dataSeries1 = [];
+				var dataSeries2 = [];
+				var dataSeries3 = [];
+				
+				var returned = 0;
+
+				function completed() {
+					console.log("Complete "+returned);
+				}
+
+				function callBack0(retData) {
+					returned++;
+					console.log("HAPPY ENDING.0: returned="+returned);
+					
+					document.getElementById('div0').innerHTML="Nuvarande temperatur = " + retData[0][1] + "°C";
+					console.log("Length of dataseries0 = " + dataSeries1.length);
+					completed();
+				}
+				function callBack1(retData) {
+					returned++;
+					console.log("HAPPY ENDING.A: returned="+returned);
+//					var items = JSON.parse(retData); // already parsed
+					
+					$.each( retData, function( key, val ) {
+						console.log("HAPPY ENDING.A: returned="+returned+", key="+key);
+						dataSeries1[key] = {
+							name: names[key],
+							data: val,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}
+					});
+//					dataSeries1= new cloneObject(retData);
+//					dataSeries1 = retData.slice();
+					console.log("Length of dataseries1 = " + dataSeries1.length);
+					createChart();
+					completed();
+				}
+				function callBack3(retData) {
+					returned++;
+					console.log("HAPPY ENDING.C: returned="+returned);
+					
+					$.each( retData, function( key, val ) {
+						console.log("HAPPY ENDING.C: returned="+returned+", key="+key);
+						dataSeries3[key] = {
+							name: temps[key],
+							data: val,
+							tooltip: {
+								valueDecimals: 2
+							},
+							step: true
+						}
+					});
+					console.log("Length of dataseries3 = " + dataSeries3.length);
+					createChartB();
+					completed();
+				}
+				function callBack2(retData) {
+					returned++;
+					console.log("HAPPY ENDING.B: returned="+returned);
+//					var items = JSON.parse(retData);	// already parsed
+
+					dataSeries2 = retData.slice();
+					console.log("Length of dataseries2 = " + dataSeries2.length);
+					createChart2();
+					completed();
+				}
+
+				function cloneObject(source) {
+					for (i in source) {
+						if (typeof source[i] == 'source') {
+							this[i] = new cloneObject(source[i]);
+						}
+						else{
+							this[i] = source[i];
+						}
+					}
+				}
+
+				function errorMsg(err) {
+					returned++;
+					console.log("BAD ENDING: " + err + ",	returned="+returned); 
+				}
+				
+				$.ajax(url+"?callback=callBack0&json="+jsonstr0, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBack0, 
+					error: errorMsg 
+				});
+
+				$.ajax(url+"?callback=callBack1&json="+jsonstr, { 
+					data: {"id": "cb1"},
+					dataType: 'jsonp', 
+					success: callBack1, 
+					error: errorMsg 
+				});
+
+				$.ajax(url+"?callback=callBack3&json="+jsonstrB, { 
+					data: {"id": "cb3"},
+					dataType: 'jsonp', 
+					success: callBack3, 
+					error: errorMsg 
+				});
+
+				$.ajax(url+"?callback=callBack2&json="+jsonstr2, { 
+					data: {"id": "cb2"},
+					dataType: 'jsonp', 
+					success: callBack2, 
+					error: errorMsg 
+				});
+
+
+
+				function createChart() {
+					chart1 = new Highcharts.StockChart({
+//					$('#div1').highcharts('StockChart', {
+						chart: {
+							renderTo: 'div1'
+						},
+						title : {
+							text : 'Temperatur över tiden'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + '°C';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								second: '%Y-%m-%d<br>%H:%M:%S',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+//							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}°C</b> ({point.change}%)<br/>',
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}°C</b><br/>',
+							valueDecimals: 2
+						},
+						series: dataSeries1
+					});
+				}	// end createchart function
+
+				function createChartB() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: 'div3'
+						},
+						title : {
+							text : 'Min, Max och medel utomhustemperatur'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + '°C';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								second: '%Y-%m-%d<br>%H:%M',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}°C</b><br/>',
+							valueDecimals: 2
+						},
+						series: dataSeries3
+					});
+				}	// end createchart function
+
+
+				function createChart2() {
+					chart2 = new Highcharts.StockChart({
+//					$('#div2').highcharts('StockChart', {
+						chart: {
+							renderTo: 'div2',
+							type: 'areasplinerange'
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 5,
+							inputEnabled : false
+						},
+						title: {
+							text: 'Temperaturvariation per dag'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + '°C';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								second: '%Y-%m-%d',
+							}
+						},
+						tooltip: {
+							valueSuffix: '°C',
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}°C</b><br/>',
+						},
+						series: [{
+							name: 'Temperaturvariationer',
+							data: dataSeries2,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart2 function
+
+			});     // end $function
+		
+		</script>
+        		
+		<style type="text/css"></style><style type="text/css"></style><script>window["_GOOG_TRANS_EXT_VER"] = "1";</script>
+	</head>
+	<body>
+		<script src="/js/highstock.js"></script>
+		<script src="/js/highcharts-more.js"></script>
+		<script src="/js/modules/exporting.js"></script>
+		<center><font size="26"><div id="div0" style="height: 50px; min-width: 100px"> </div></font></center>
+		
+               	<div id="divA" style="height: 10px; min-width: 500px"> </div>
+ 		<div id="div1" style="height: 300px; min-width: 500px"> </div>
+                <div id="divB" style="height: 10px; min-width: 500px"> </div>
+		<div id="div2" style="height: 300px; min-width: 500px"> </div>
+                <div id="divC" style="height: 10px; min-width: 500px"> </div>
+		<div id="div3" style="height: 300px; min-width: 500px"> </div>
+                <div id="divD" style="height: 10px; min-width: 500px"> </div>
+		<div class="canvas"></div>
+
+	</body>
+</html>
