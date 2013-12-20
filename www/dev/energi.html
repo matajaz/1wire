@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		
+		<title>Mathias temperaturmätningar</title>
+
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(function() {
+				var dataSeries = [],
+				yAxisOptions = [],
+				seriesCounter = 0,
+				names = ['SignalStrength (hallon1)', 'SignalStrength (hallon2)', 'SignalStrength (hallon3)', 'SignalQuality (hallon1)', 'SignalQuality (hallon2)', 'SignalQuality (hallon3)'],
+				temps = ['Max', 'Min', 'Avg'],
+				colors = Highcharts.getOptions().colors;
+
+				var last1h = "SELECT energy.timegroup  as TimeStamp, round( sum( energy.countdiff ) ,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d %H:%i' ) as 'timegroup' FROM elmatare c JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( hour, -1, Now() ),'%Y-%m-%d %H:%i' ) and Now()) energy GROUP BY energy.timegroup;";
+				var last4h = "SELECT energy.timegroup  as TimeStamp, round( sum( energy.countdiff ) ,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d %H:%i' ) as 'timegroup' FROM elmatare c JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( hour, -4, Now() ),'%Y-%m-%d %H:%i' ) and Now()) energy GROUP BY energy.timegroup;";
+				var last24h = "SELECT energy.timegroup  as TimeStamp, round( sum( energy.countdiff ) ,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d %H:%i' ) as 'timegroup' FROM elmatare c JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( hour, -24, Now() ),'%Y-%m-%d %H:%i' ) and Now()) energy GROUP BY energy.timegroup;";
+				var last30days = "SELECT energy.timegroup  as Day, round( sum( energy.countdiff ) / 1000,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d' ) as 'timegroup' FROM elmatare c	JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( day, -30, Now() ),'%Y-%m-%d' ) and Now()) energy GROUP BY energy.timegroup;";
+				var weeklyEnergy = "SELECT WEEK(date) as Week,	ROUND( SUM( energy.countdiff ) / 1000,0) as kWh	FROM (SELECT i.counter_d - c.counter_d  AS countdiff, c.timestamp AS date FROM elmatare c	JOIN (select * FROM elmatare) i ON c.index=i.index-1 AND c.timestamp) energy GROUP BY Week;";
+				var monthlyEnergy = "SELECT MONTHNAME(date) as Month,	ROUND( SUM( energy.countdiff ) / 1000,0) as kWh FROM (SELECT i.counter_d - c.counter_d  AS countdiff, c.timestamp AS date FROM elmatare c JOIN (select * FROM elmatare) i ON c.index=i.index-1 AND c.timestamp ) energy GROUP BY MONTH(date);";
+
+				var Q = {};
+				Q["LAST4HOURS_Energy"] = "SELECT energy.timegroup  as 'Day', round( sum( energy.countdiff ) ,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d %H-%i' ) as 'timegroup' FROM elmatare c	JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( hour, -4, Now() ),'%Y-%m-%d %H:%i' ) and Now()) energy GROUP BY energy.timegroup;";
+				Q["MONTHLY_Energy"] = "SELECT MONTHNAME(date) as Month,	ROUND( SUM( energy.countdiff ) / 1000,0) as kWh FROM (SELECT i.counter_d - c.counter_d  AS countdiff, c.timestamp AS date FROM elmatare c JOIN (select * FROM elmatare) i ON c.index=i.index-1 AND c.timestamp ) energy GROUP BY MONTH(date);";
+				Q["October_Energy"] = "SELECT energy.timegroup  as 'Day', round( sum( energy.countdiff ) / 1000,0) as 'kWh' FROM ( SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d' ) as 'timegroup' FROM elmatare c join (select * FROM elmatare) i on c.index=i.index-1 AND c.timestamp between '2010-10-01' AND '2010-10-31' ) energy GROUP BY energy.timegroup;";
+				Q["WEEKLY_Energy"] = "SELECT WEEK(date) as Week,	ROUND( SUM( energy.countdiff ) / 1000,0) as kWh	FROM (SELECT i.counter_d - c.counter_d  AS countdiff, c.timestamp AS date FROM elmatare c	JOIN (select * FROM elmatare) i ON c.index=i.index-1 AND c.timestamp) energy GROUP BY Week;";
+				Q["30DAYS_Energy"] = "SELECT energy.timegroup  as 'Day', round( sum( energy.countdiff ) / 1000,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d' ) as 'timegroup' FROM elmatare c	JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( day, -30, Now() ),'%Y-%m-%d' ) and Now()) energy GROUP BY energy.timegroup;";
+				Q["30DAYS_Temp"] = "SELECT date_format( timestamp,'%Y-%m-%d' ) as Time, AVG(Temperature) as Temperature FROM Utetemp a WHERE a.timestamp between date_format(timestampadd( day, -30, Now() ),'%Y-%m-%d' ) and Now() GROUP by date_format( a.timestamp,'%Y-%m-%d' );";
+				Q["30DAYS_Temp_Avg"] = "SELECT date_format( timestamp,'%Y-%m-%d %H' ) as Time, AVG(Temperature) as Temperature FROM Utetemp a WHERE a.timestamp between date_format(timestampadd( day, -30, Now() ),'%Y-%m-%d' ) and Now() GROUP by date_format( a.timestamp,'%Y-%m-%d %H' );";
+				Q["LAST24HOURS_Energy"] = "SELECT energy.timegroup  as 'Hour', round( sum( energy.countdiff ) / 1000,0) as 'kWh' FROM (SELECT i.counter_d - c.counter_d  as 'countdiff', c.counter_d as 'startcounter', date_format( c.timestamp,'%Y-%m-%d %H' ) as 'timegroup' FROM elmatare c	JOIN (SELECT * FROM elmatare) i on c.index=i.index-1 and c.timestamp BETWEEN date_format(timestampadd( hour, -24, Now() ),'%Y-%m-%d %H' ) and Now()) energy GROUP BY energy.timegroup;";
+				Q["LAST24HOURS_Temp"] = "SELECT date_format( timestamp,'%Y-%m-%d %H' ) as Time, AVG(Temperature) as Temperature FROM Utetemp a WHERE a.timestamp between date_format(timestampadd( hour, -24, Now() ),'%Y-%m-%d %H' ) and Now() GROUP by date_format( a.timestamp,'%Y-%m-%d %H' );";
+				var queries = {
+					"queries": Q["LAST4HOURS_Energy"] + "QUERY:" + Q["MONTHLY_Energy"] + "QUERY:" + Q["WEEKLY_Energy"]
+					+ "QUERY:" + Q["30DAYS_Energy"] + "QUERY:" + Q["30DAYS_Temp"] + "QUERY:" + Q["30DAYS_Temp_Avg"]
+					+ "QUERY:" + Q["LAST24HOURS_Energy"] + "QUERY:" + Q["LAST24HOURS_Temp"] + "QUERY:" + Q["October_Energy"]
+				}
+				var Qi = {};
+				Qi["DUMMY"] = 0;
+				Qi["LAST4HOURS_Energy"] = 0;
+				Qi["MONTHLY_Energy"] = 1;
+				Qi["WEEKLY_Energy"] = 2;
+				Qi["30DAYS_Energy"] = 3;
+				Qi["30DAYS_Temp"] = 4;
+				Qi["30DAYS_Temp_Avg"] = 5;
+				Qi["LAST24HOURS_Energy"] = 6;
+				Qi["LAST24HOURS_Temp"] = 7;
+				Qi["October_Energy"] = 8;
+
+				var query1h = JSON.stringify(last1h);
+				var query4h = JSON.stringify(last4h);
+				var query24h = JSON.stringify(last24h);
+				var json30denergy = JSON.stringify(last30days);
+				var jsonweeklyenergy = JSON.stringify(weeklyEnergy);
+				var jsonmonthlyenergy = JSON.stringify(monthlyEnergy);
+
+				var url = "/dev/server.php";
+
+				var dataSeries1 = [];
+				var dataSeries2 = [];
+				var dataSeries3 = [];
+				var dataSeries1h = [];
+				var dataSeries4h = [];
+				var dataSeries24h = [];
+				var dataSeries30dEnergy = [];
+				var dataSeriesWeeklyEnergy = [];
+				var dataSeriesMonthlyEnergy = [];
+				
+				var returned = 0;
+
+				function completed() {
+					console.log("Complete "+returned);
+				}
+
+				function callBackWifiSignal(retData) {
+					returned++;
+					console.log("HAPPY ENDING.A: returned="+returned);
+//					var items = JSON.parse(retData); // already parsed
+					
+					$.each( retData, function( key, val ) {
+						console.log("HAPPY ENDING.A: returned="+returned+", key="+key);
+						dataSeries1[key] = {
+							name: names[key],
+							data: val,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}
+					});
+//					dataSeries1= new cloneObject(retData);
+//					dataSeries1 = retData.slice();
+					console.log("Length of dataseries1 = " + dataSeries1.length);
+					createChart();
+					completed();
+				}
+
+				function callBack1h(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeries1h = retData.slice();
+					console.log("Length of dataSeries1h = " + dataSeries1h.length);
+					createChart1h();
+					completed();
+				}
+
+				function callBack4h(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeries4h = retData.slice();
+					console.log("Length of dataSeries4h = " + dataSeries4h.length);
+					createChart4h();
+					completed();
+				}
+
+				function callBack24h(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeries24h = retData.slice();
+					console.log("Length of dataSeries24h = " + dataSeries24h.length);
+					createChart24h();
+					completed();
+				}
+
+				function callBack30dEnergy(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeries30dEnergy = retData.slice();
+					console.log("Length of dataSeries30dEnergy = " + dataSeries30dEnergy.length);
+					createChart30dEnergy();
+					completed();
+				}
+				function callBackWeeklyEnergy(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeriesWeeklyEnergy = retData.slice();
+					console.log("Length of dataSeriesWeeklyEnergy = " + dataSeriesWeeklyEnergy.length);
+					createChartWeeklyEnergy();
+					completed();
+				}
+				function callBackMonthlyEnergy(retData) {
+					returned++;
+					console.log(":-): "+returned);
+
+					dataSeriesMonthlyEnergy = retData.slice();
+					console.log("Length of dataSeriesMonthlyEnergy = " + dataSeriesMonthlyEnergy.length);
+					createChartMonthlyEnergy();
+					completed();
+				}
+
+				function cloneObject(source) {
+					for (i in source) {
+						if (typeof source[i] == 'source') {
+							this[i] = new cloneObject(source[i]);
+						}
+						else{
+							this[i] = source[i];
+						}
+					}
+				}
+
+				function errorMsg(err) {
+					returned++;
+					console.log("BAD ENDING: " + err + ",	returned="+returned); 
+				}
+				
+				$.ajax(url+"?callback=callBack1h&json="+query1h, { 
+					data: {"id": "cb1"},
+					dataType: 'jsonp', 
+					success: callBack1h, 
+					error: errorMsg 
+				});
+
+				$.ajax(url+"?callback=callBack4h&json="+query4h, { 
+					data: {"id": "cb4"},
+					dataType: 'jsonp', 
+					success: callBack4h, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBack24h&json="+query24h, { 
+					data: {"id": "cb24"},
+					dataType: 'jsonp', 
+					success: callBack24h, 
+					error: errorMsg 
+				});
+				
+				$.ajax(url+"?callback=callBack30dEnergy&json="+json30denergy, { 
+					data: {"id": "cb30d"},
+					dataType: 'jsonp', 
+					success: callBack30dEnergy, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackWeeklyEnergy&json="+jsonweeklyenergy, { 
+					data: {"id": "cbweekly"},
+					dataType: 'jsonp', 
+					success: callBackWeeklyEnergy, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackMonthlyEnergy&json="+jsonmonthlyenergy, { 
+					data: {"id": "cbmonthly"},
+					dataType: 'jsonp', 
+					success: callBackMonthlyEnergy, 
+					error: errorMsg 
+				});
+
+				function createChart1h() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: '1h'
+						},
+						title : {
+							text : 'Energiförbrukning senaste timmen'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								minute: '%Y-%m-%d<br>%H:%M',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "1h",
+							data: dataSeries1h,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+
+				function createChart4h() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: '4h'
+						},
+						title : {
+							text : 'Energiförbrukning senaste 4 timmarna'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								minute: '%Y-%m-%d<br>%H:%M',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "4h",
+							data: dataSeries4h,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+
+				function createChart24h() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: '24h'
+						},
+						title : {
+							text : 'Energiförbrukning senaste 24 timmarna'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								hour: '%Y-%m-%d<br>%H',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "24h",
+							data: dataSeries24h,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+
+				function createChart30dEnergy() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: '30dEnergy'
+						},
+						title : {
+							text : 'Energiförbrukning de senaste 30 dagarna'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								hour: '%Y-%m-%d<br>%H',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "30dEnergy",
+							data: dataSeries30dEnergy,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+
+				function createChartWeeklyEnergy() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: 'WeeklyEnergy'
+						},
+						title : {
+							text : 'Energiförbrukning per vecka'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								hour: '%Y-%m-%d<br>%H',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "WeeklyEnergy",
+							data: dataSeriesWeeklyEnergy,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+				function createChartMonthlyEnergy() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: 'MonthlyEnergy'
+						},
+						title : {
+							text : 'Energiförbrukning per månad'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + 'kWh';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								hour: '%Y-%m-%d<br>%H',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}kwH</b><br/>',
+							valueDecimals: 2
+						},
+						series: [{
+							name: "MonthlyEnergy",
+							data: dataSeriesMonthlyEnergy,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}]
+					});
+				}	// end createchart function
+
+			});     // end $function
+		
+		</script>
+        		
+		<style type="text/css"></style><style type="text/css"></style><script>window["_GOOG_TRANS_EXT_VER"] = "1";</script>
+	</head>
+	<body>
+		<script src="/js/highstock.js"></script>
+		<script src="/js/highcharts-more.js"></script>
+		<script src="/js/modules/exporting.js"></script>
+		
+ 		<div id="1h" style="height: 500px; min-width: 500px"> </div>
+		<div id="4h" style="height: 500px; min-width: 500px"> </div>
+		<div id="24h" style="height: 500px; min-width: 500px"> </div>
+		<div id="30dEnergy" style="height: 500px; min-width: 500px"> </div>
+		<div id="WeeklyEnergy" style="height: 500px; min-width: 500px"> </div>
+		<div id="MonthlyEnergy" style="height: 500px; min-width: 500px"> </div>
+		<div class="canvas"></div>
+
+	</body>
+</html>

@@ -103,12 +103,40 @@ function connect($sql)
 	}
 }
 
+function stripslashes_array(&$arr) {
+	echo "arr=$arr<br>";
+	foreach ($arr as $k => &$v) {
+		$nk = stripslashes($k);
+		if ($nk != $k) {
+			$arr[$nk] = &$v;
+			unset($arr[$k]);
+		}
+		if (is_array($v)) {
+			stripslashes_array($v);
+		} else {
+			$arr[$nk] = stripslashes($v);
+		}
+	}
+}
+
 function encode_single_query_result($queryobj)
 {
 	$query = mysql_real_escape_string(trim($queryobj));
-	$sqlresult = mysql_query($query) or die("Query failed with error: ".mysql_error() . " Query = " . $query . ", This is the only query");
+//	echo "Single query: $query<br>";
+//	echo "<br><br>";
+	$query = stripslashes($query);		// pga jsonstr fuckar upp det
+
+	$sqlresult = mysql_query($query) or die("Single query failed with error: ".mysql_error() . " Query = " . $query . "<br><br>");
 	While ($raw = mysql_fetch_array ($sqlresult,MYSQL_ASSOC)){	// This is really slow
-		$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
+		if (preg_match("/as Day/i", $query)) {
+			$time = strtotime($raw['Day']) * 1000;	// javascript uses milli seconds
+		} elseif (preg_match("/as Week/i", $query)) {
+			$time = strtotime($raw['Week']) * 1000;	// javascript uses milli seconds
+		} elseif (preg_match("/as Month/i", $query)) {
+			$time = strtotime($raw['Month']) * 1000;	// javascript uses milli seconds
+		}else {
+			$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
+		}
 		if (preg_match("/MAX/i", $query) and preg_match("/MIN\(/i", $query)) {
 			if (preg_match("/WifiSignal/i", $query)) {
 				$point = array($time,floatval($raw['MAX(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
@@ -173,18 +201,13 @@ function encode_single_query_result($queryobj)
 				$point = array($time,floatval($raw['CPUTemp']));
 			}elseif (preg_match("/GPUTemp/i", $query)){
 				$point = array($time,floatval($raw['GPUTemp']));
+			}elseif (preg_match("/kWh/i", $query)){
+				$point = array($time,floatval($raw['kWh']));
 			}
 
-		}
 
-
-		
-/*		if (preg_match("/MAX|MIN/i", $query)) {
-			$point = array($time,floatval($raw['MAX(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-		} else {
-			$point = array($time,floatval($raw['WifiSignal']));
 		}
-*/		$result[] = $point;
+		$result[] = $point;
 	} // end while
 	$jsonstr = json_encode($result);
 	return $jsonstr;
@@ -192,6 +215,11 @@ function encode_single_query_result($queryobj)
 
 function encode_multiple_query_results($queryobj)
 {
+//	echo "Single query: $query<br>";
+//	echo "<br><br>";
+//	var $query = array();
+//	$query = stripslashes_array($queryobj);		// pga jsonstr fuckar upp det
+
 	$result = array();
 	for ( $counter = 0; $counter < count($queryobj); $counter ++) {
 		$q1time = microtime(true);
@@ -265,15 +293,11 @@ function encode_multiple_query_results($queryobj)
 					$point = array($time,floatval($raw['CPUTemp']));
 				}elseif (preg_match("/GPUTemp/i", $query)){
 					$point = array($time,floatval($raw['GPUTemp']));
+				}elseif (preg_match("/kWh/i", $query)){
+					$point = array($time,floatval($raw['kWh']));
 				}
 			}
 			
-/*			if (preg_match("/MAX|MIN/i", $query)) {
-				$point = array($time,floatval($raw['MIN(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-			} else {
-				$point = array($time,floatval($raw['WifiSignal']));
-			}
-*/
 			$result[$counter][] = $point;
 		} // end while
 	} // end for
@@ -342,29 +366,6 @@ $logging = write_log("server.php startar: $start");
 	}else{
 		echo $jsonResponse;
 	}
-
-
-
-
-//		$result = array();
-//		for ( $counter = 0; $counter < count($queryobj); $counter ++) {
-//			$q1time = microtime(true);
-//			$query = mysql_real_escape_string(trim($queryobj[$counter]));
-//$query=$queryobj[$counter];
-//			$sqlresult = mysql_query($query) or die("Query failed with error: ".mysql_error() . " Query = " . $query . ", Query no: " . $counter);
-//			$q2time = microtime(true);
-//			$rows = mysql_num_rows($sqlresult) or die(mysql_error());
-//			$logging = write_log("Query result received, rows=$rows");
-//			While ($raw = mysql_fetch_array ($sqlresult,MYSQL_ASSOC)){	// This is really slow
-
-//				$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
-//				$point = array($time,floatval($raw['Temperature']));
-//				$result[$counter][] = $point;
-
-//			} // end while
-//		}
-//		$jsonstr = json_encode($result);
-//		echo $jsonstr;
 
 	$time = microtime();
 	$time = explode(' ', $time);

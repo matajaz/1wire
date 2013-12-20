@@ -11,35 +11,66 @@
 				var dataSeries = [],
 				yAxisOptions = [],
 				seriesCounter = 0,
-				names = ['Utetemp', 'Föråds temp', 'Arbetrsrum', 'Sovrum','Anlis rum','Gästrum'],
+				names = ['Utetemp', 'Föråds temp', 'Arbetrsrum', 'Sovrum','Anlis rum','Gästrum','CPU1','CPU2','CPU3','GPU1','GPU2','GPU3'],
 				temps = ['Max', 'Min', 'Avg'],
 				colors = Highcharts.getOptions().colors;
 
 				var query1 = "SELECT TimeStamp,Temperature FROM utetemp LIMIT 5000;";
-                                var query1b = "SELECT TimeStamp,Temperature FROM foradstemp LIMIT 5000;";
+				var query1b = "SELECT TimeStamp,Temperature FROM foradstemp LIMIT 5000;";
  				var query2 = "SELECT TimeStamp,Temperature FROM arbetsrum LIMIT 5000;";
 				var query3 = "SELECT TimeStamp,Temperature FROM sovrum LIMIT 5000;";
 				var query4 = "SELECT TimeStamp,Temperature FROM anlis_rum LIMIT 5000;";
-                                var query5 = "SELECT TimeStamp,Temperature FROM guestroom LIMIT 5000;";
+				var query5 = "SELECT TimeStamp,Temperature FROM guestroom LIMIT 5000;";
+				var query5a = "SELECT TimeStamp,CPUTemp FROM hallon1 LIMIT 5000;";
+				var query5b = "SELECT TimeStamp,CPUTemp FROM hallon2 LIMIT 5000;";
+				var query5c = "SELECT TimeStamp,CPUTemp FROM hallon3 LIMIT 5000;";
+				var query5d = "SELECT TimeStamp,GPUTemp FROM hallon1 LIMIT 5000;";
+				var query5e = "SELECT TimeStamp,GPUTemp FROM hallon2 LIMIT 5000;";
+				var query5f = "SELECT TimeStamp,GPUTemp FROM hallon3 LIMIT 5000;";
 				var query6 = "SELECT TimeStamp,MAX(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
 				var query7 = "SELECT TimeStamp,MIN(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
 				var query8 = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp) ORDER BY TimeSTamp;";
 //				var query9 = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY HOUR(TimeStamp),MINUTE(TimeStamp) ORDER BY TimeSTamp LIMIT 5000;";
-				var tempnow = "SELECT TimeStamp,Temperature FROM utetemp ORDER BY TimeStamp DESC LIMIT 1;";
+				var utenow = "SELECT TimeStamp,Temperature FROM utetemp ORDER BY TimeStamp DESC LIMIT 1;";
+				var foradnow = "SELECT TimeStamp,Temperature FROM foradstemp ORDER BY TimeStamp DESC LIMIT 1;";
+				var arbetenow = "SELECT TimeStamp,Temperature FROM arbetsrum ORDER BY TimeStamp DESC LIMIT 1;";
+				var anlinow = "SELECT TimeStamp,Temperature FROM anlis_rum ORDER BY TimeStamp DESC LIMIT 1;";
+				var sovrumnow = "SELECT TimeStamp,Temperature FROM sovrum ORDER BY TimeStamp DESC LIMIT 1;";
+				var guestnow = "SELECT TimeStamp,Temperature FROM guestroom ORDER BY TimeStamp DESC LIMIT 1;";
+				var hallon1cpunow = "SELECT TimeStamp,CPUTemp FROM hallon1 ORDER BY TimeStamp DESC LIMIT 1;";
+				var hallon2cpunow = "SELECT TimeStamp,CPUTemp FROM hallon2 ORDER BY TimeStamp DESC LIMIT 1;";
+				var hallon3cpunow = "SELECT TimeStamp,CPUTemp FROM hallon3 ORDER BY TimeStamp DESC LIMIT 1;";
 				var rangequery = "SELECT TimeStamp,MIN(Temperature),MAX(Temperature) FROM utetemp GROUP BY DAY(TimeStamp) ORDER BY TimeStamp;";
 
 				var avgquery = "SELECT TimeStamp,AVG(Temperature) FROM utetemp GROUP BY DAY(TimeStamp) ORDER BY TimeStamp;";
 
-				var queries = new Array(query1,query1b,query2,query3,query4,query5);
+				var queries = new Array(query1,query1b,query2,query3,query4,query5,query5a,query5b,query5c,query5d,query5e,query5f);
 				var queriesB = new Array(query6,query7,query8);
 				var jsonstr = JSON.stringify(queries);
 				var jsonstrB = JSON.stringify(queriesB);
 				var jsonstr2 = JSON.stringify(rangequery);
-				var jsonstr0 = JSON.stringify(tempnow);
-				var url = "/dev/temperature.php";
+				var jsonstrutetemp = JSON.stringify(utenow);
+				var jsonstrforadstemp = JSON.stringify(foradnow);
+				var jsonstrarbetestemp = JSON.stringify(arbetenow);
+				var jsonstranlitemp = JSON.stringify(anlinow);
+				var jsonstrsovrumtemp = JSON.stringify(sovrumnow);
+				var jsonstrguesttemp = JSON.stringify(guestnow);
+				var jsonstrhallon1cputemp = JSON.stringify(hallon1cpunow);
+				var jsonstrhallon2cputemp = JSON.stringify(hallon2cpunow);
+				var jsonstrhallon3cputemp = JSON.stringify(hallon3cpunow);
+				var url = "/dev/server.php";
 				var dataSeries1 = [];
 				var dataSeries2 = [];
 				var dataSeries3 = [];
+				var dataSeriesUteTemp = [];
+				var dataSeriesForadsTemp = [];
+				var dataSeriesArbetsrumsTemp = [];
+				var dataSeriesAnliTemp = [];
+				var dataSeriesSovrumTemp = [];
+				var dataSeriesGuestrumTemp = [];
+				var dataSeriesHallon1CpuTemp = [];
+				var dataSeriesHallon2CpuTemp = [];
+				var dataSeriesHallon3CpuTemp = [];
 				
 				var returned = 0;
 
@@ -47,14 +78,82 @@
 					console.log("Complete "+returned);
 				}
 
-				function callBack0(retData) {
+				function callBackUteTemp(retData) {
 					returned++;
-					console.log("HAPPY ENDING.0: returned="+returned);
+					console.log(returned + " :-)");
 					
-					document.getElementById('div0').innerHTML="Nuvarande temperatur = " + retData[0][1] + "°C";
-					console.log("Length of dataseries0 = " + dataSeries1.length);
+					document.getElementById('r1c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesUteTemp = " + dataSeriesUteTemp.length);
 					completed();
 				}
+				function callBackForadsTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r2c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesForadsTemp = " + dataSeriesForadsTemp.length);
+					completed();
+				}
+				function callBackArbetsrumsTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r3c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesArbetsrumsTemp = " + dataSeriesArbetsrumsTemp.length);
+					completed();
+				}
+				function callBackAnliTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r4c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesAnliTemp = " + dataSeriesAnliTemp.length);
+					completed();
+				}
+				function callBackSovrumTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r5c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesSovrumTemp = " + dataSeriesSovrumTemp.length);
+					completed();
+				}
+				function callBackGuestTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r6c2').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesGuestrumTemp = " + dataSeriesGuestrumTemp.length);
+					completed();
+				}
+				function callBackHallon1CPUTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r1c4').innerHTML = retData[0][1] + "°C<br>";
+					document.getElementById('r3c4').innerHTML = retData[0][1] + "°C<br>";
+					document.getElementById('r4c4').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesHallon1CpuTemp = " + dataSeriesHallon1CpuTemp.length);
+					completed();
+				}
+				function callBackHallon2CPUTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r2c4').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesHallon2CpuTemp = " + dataSeriesHallon2CpuTemp.length);
+					completed();
+				}
+				function callBackHallon3CPUTemp(retData) {
+					returned++;
+					console.log(returned + " :-)");
+					
+					document.getElementById('r5c4').innerHTML = retData[0][1] + "°C<br>";
+					document.getElementById('r6c4').innerHTML = retData[0][1] + "°C<br>";
+					console.log("Length of dataSeriesHallon3CpuTemp = " + dataSeriesHallon3CpuTemp.length);
+					completed();
+				}
+
 				function callBack1(retData) {
 					returned++;
 					console.log("HAPPY ENDING.A: returned="+returned);
@@ -122,10 +221,58 @@
 					console.log("BAD ENDING: " + err + ",	returned="+returned); 
 				}
 				
-				$.ajax(url+"?callback=callBack0&json="+jsonstr0, { 
+				$.ajax(url+"?callback=callBackUteTemp&json="+jsonstrutetemp, {
 					data: {"id": "cb0"},
 					dataType: 'jsonp', 
-					success: callBack0, 
+					success: callBackUteTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackForadsTemp&json="+jsonstrforadstemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackForadsTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackArbetsrumsTemp&json="+jsonstrarbetestemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackArbetsrumsTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackAnliTemp&json="+jsonstranlitemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackAnliTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackSovrumTemp&json="+jsonstrsovrumtemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackSovrumTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackGuestTemp&json="+jsonstrguesttemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackGuestTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackHallon1CPUTemp&json="+jsonstrhallon1cputemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackHallon1CPUTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackHallon2CPUTemp&json="+jsonstrhallon2cputemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackHallon2CPUTemp, 
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackHallon3CPUTemp&json="+jsonstrhallon3cputemp, { 
+					data: {"id": "cb0"},
+					dataType: 'jsonp', 
+					success: callBackHallon3CPUTemp, 
 					error: errorMsg 
 				});
 
@@ -383,14 +530,57 @@
 		<script src="/js/highstock.js"></script>
 		<script src="/js/highcharts-more.js"></script>
 		<script src="/js/modules/exporting.js"></script>
-		<center><font size="26"><div id="div0" style="height: 50px; min-width: 100px"> </div></font></center>
+		<table border="10">
+			<tr>
+				<th>Rum</th>
+				<th>Temperatur</th><
+				<th>Host</th>
+				<th>CPU temperatur</th>
+			</tr>
+
+			<tr>
+				<td><div id="r1c1"> Ute</div></td>
+				<td><div id="r1c2"> </div></td>
+				<td><div id="r1c3"> Hallon1</div></td>
+				<td><div id="r1c4"> </div></td>
+			</tr>
+			<tr>
+				<td><div id="r2c1"> Föråd</div></td>
+				<td><div id="r2c2"> </div></td>
+				<td><div id="r2c3"> Hallon2</div></td>
+				<td><div id="r2c4"> </div></td>
+			</tr>
+			<tr>
+				<td><div id="r3c1"> Arbetsrum</div></td>
+				<td><div id="r3c2"> </div></td>
+				<td><div id="r3c3"> Hallon1</div></td>
+				<td><div id="r3c4"> </div></td>
+			</tr>
+			<tr>
+				<td><div id="r4c1"> Anlis rum</div></td>
+				<td><div id="r4c2"> </div></td>
+				<td><div id="r4c3"> Hallon1</div></td>
+				<td><div id="r4c4"> </div></td>
+			</tr>
+			<tr>
+				<td><div id="r5c1"> Sovrum</div></td>
+				<td><div id="r5c2"> </div></td>
+				<td><div id="r5c3"> Hallon3</div></td>
+				<td><div id="r5c4"> </div></td>
+			</tr>
+			<tr>
+				<td><div id="r6c1"> Gästrum</div></td>
+				<td><div id="r6c2"> </div></td>
+				<td><div id="r6c3"> Hallon3</div></td>
+				<td><div id="r6c4"> </div></td>
+			</tr>
+		</table>
 		
-               	<div id="divA" style="height: 10px; min-width: 500px"> </div>
- 		<div id="div1" style="height: 300px; min-width: 500px"> </div>
+ 		<div id="div1" style="height: 500px; min-width: 500px"> </div>
                 <div id="divB" style="height: 10px; min-width: 500px"> </div>
-		<div id="div2" style="height: 300px; min-width: 500px"> </div>
+		<div id="div2" style="height: 500px; min-width: 500px"> </div>
                 <div id="divC" style="height: 10px; min-width: 500px"> </div>
-		<div id="div3" style="height: 300px; min-width: 500px"> </div>
+		<div id="div3" style="height: 500px; min-width: 500px"> </div>
                 <div id="divD" style="height: 10px; min-width: 500px"> </div>
 		<div class="canvas"></div>
 

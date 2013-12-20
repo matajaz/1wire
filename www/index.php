@@ -117,7 +117,9 @@
 
 		<br>
 		<br>
-		<a href="/temperature.html">Go to Mathias temperatursida</a> 
+		<a href="/temperature.html">Go to Mathias temperatursida</a>
+		<br>
+		<a href="/wifi.html">Go to Mathias wifisida</a> 
         </body>
 
 </html>
