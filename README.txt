@@ -332,3 +332,26 @@ https://wiki.debian.org/iptables
                                                 },
 
 
+
+
+Make 1wire script starts at boot
+================================
+http://www.stuffaboutcode.com/2012/06/raspberry-pi-run-program-at-start-up.html
+
+Make script executable
+	sudo chmod 755 /etc/init.d/1wire.sh
+
+Test starting the program
+	sudo /etc/init.d/1wire.sh start
+
+Test stopping the program
+	sudo /etc/init.d/1wire.sh stop
+
+Register script to be run at start-up
+To register your script to be run at start-up and shutdown, run the following command:
+	sudo update-rc.d 1wire.sh defaults
+
+Note - The header at the start is to make the script LSB compliant and provides details about the start up script and you should only need to change the name.  If you want to know more about creating LSB scripts for managing services, see http://wiki.debian.org/LSBInitScripts
+
+If you ever want to remove the script from start-up, run the following command:
+	sudo update-rc.d -f 1wire.sh remove

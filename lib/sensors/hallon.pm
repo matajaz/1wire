@@ -27,29 +27,37 @@ sub new
 	$gputemp =~ s/temp=([-+]?[0-9]*\.?[0-9]+)'C/$1/;
 #	$gputemp =~ s/temp=([-+]?[0-9]*\.?[0-9]+)'C//;
 
+	
 	$self->{_cpuTemp} = $cputemp2 % $cputemp1;
 	$self->{_gpuTemp} = $gputemp;
 	$self->{_wifiId} = `lspci | egrep -i --color 'wifi|wlan|wireless'`;
 	chomp $self->{_wifiId};
 	my $wifi = `iwconfig wlan0 | grep -i quality`;
-	my ($signal) = $wifi =~ /Signal level=(\S+)/;
-	my ($quality) = $wifi =~ /Quality=(\S+)/;
-	my ($t,$n) = $signal =~ /(\d+)\/(\d+)/;
-	if ($n > 0){
-		$signal = $t/$n;
-	}else{
-		$signal = 0;
-	}
-	($t,$n) = $quality =~ /(\d+)\/(\d+)/; 
-	if ($n > 0){
-		$quality = $t/$n;
-	}else{
-		$quality = 0;
-	}
-	print "Wifi signal strength = $signal,	Wifi quality = $quality	wifistring=\'$wifi\'\n";
-
-	$self->{_wifiSignal} = $signal*100;
-	$self->{_wifiQuality} = $quality*100;
+        chomp $wifi;
+        my ($t,$n);
+        my ($sign,$signal) = $wifi =~ /Signal level=(-)*(\S+)/;
+        my ($quality) = $wifi =~ /Quality=(\S+)/;
+        if ($wifi =~ /dBm/) {
+                $signal = (($signal - 95)*5/3)/100*(-1);
+        }else{
+                ($t,$n) = $signal =~ /(\d+)\/(\d+)/;
+                if ($n > 0){
+                        $signal = $t/$n;
+                }else{
+                        $signal = 0;
+                }
+        }
+        ($t,$n) = $quality =~ /(\d+)\/(\d+)/;
+        if ($n > 0){
+                $quality = $t/$n;
+        }else{
+                $quality = 0;
+        }
+        $signal = sprintf("%.2f", $signal);
+        $quality = sprintf("%.2f", $quality);
+        print "Wifi signal strength = $signal,  Wifi quality = $quality wifistring=\'$wifi\'\n";
+        $self->{_wifiSignal} = $signal*100;
+        $self->{_wifiQuality} = $quality*100;
 
 	bless $self, $class;
 	return $self;
@@ -111,13 +119,18 @@ sub fetchAllValues {
 	chomp $self->{_wifiId};
 	my $wifi = `iwconfig wlan0 | grep -i quality`;
 	chomp $wifi;
-	my ($signal) = $wifi =~ /Signal level=(\S+)/;
+	my ($t,$n);
+	my ($sign,$signal) = $wifi =~ /Signal level=(-)*(\S+)/;
 	my ($quality) = $wifi =~ /Quality=(\S+)/;
-	my ($t,$n) = $signal =~ /(\d+)\/(\d+)/; 
-	if ($n > 0){
-		$signal = $t/$n;
+	if ($wifi =~ /dBm/) {
+		$signal = (($signal - 95)*5/3)/100*(-1);
 	}else{
-		$signal = 0;
+		($t,$n) = $signal =~ /(\d+)\/(\d+)/; 
+		if ($n > 0){
+			$signal = $t/$n;
+		}else{
+			$signal = 0;
+		}
 	}
 	($t,$n) = $quality =~ /(\d+)\/(\d+)/; 
 	if ($n > 0){
@@ -125,6 +138,8 @@ sub fetchAllValues {
 	}else{
 		$quality = 0;
 	}
+        $signal = sprintf("%.2f", $signal);
+        $quality = sprintf("%.2f", $quality);
 	print "Wifi signal strength = $signal,	Wifi quality = $quality	wifistring=\'$wifi\'\n";
 	$self->{_wifiSignal} = $signal*100;
 	$self->{_wifiQuality} = $quality*100;

@@ -130,6 +130,19 @@ $onewire->readDeviceInfo(\%devicesqltable);
 $onewire->disconnectFromMySql;
 #exit;
 
+print "Wait until a new minute starts....\n";
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+printf("Time: %02d:%02d:%02d\n", $hour, $min, $sec);
+my $wait = 60-$sec;
+if ($wait < 60){
+	print "Sleeping $wait seconds.\n";
+	sleep ($wait);
+}
+print "Contiueing\n";
+($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+printf("Time:	%02d:%02d:%02d\n", $hour, $min, $sec);
+my $inserted;
+
 while ( $exitflag == 0) {
 	if ( -e $stopfile){
 		print "stop\n";
@@ -149,14 +162,27 @@ while ( $exitflag == 0) {
 		$onewire->printAllMeasurements;
 		$lastminute = $minute;
 	}else {
-		print "sleep $sleeptime s\n";
-		sleep ($sleeptime);
+		print "Wait until a new minute starts....\n";
+		($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+		printf("Time: %02d:%02d:%02d\n", $hour, $min, $sec);
+		$wait = 60-$sec;
+		if ($wait < 60){ 
+			$lastminute = $min;
+			print "sleeping $wait seconds.\n";              
+			sleep ($wait);  
+		}
+		print "Contiueing\n";        
+		($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime();
+		printf("Time:   %02d:%02d:%02d\n", $hour, $min, $sec);
+		$minute = $min;
+		undef $inserted;
 	}
-	if ($minute % 5 == 0){
+	if ($minute % 5 == 0 and !defined $inserted){
 		$onewire->connectToMySql('access/accessDB');
 #		$onewire->updateSQLWithDevices(\%devicesqltable);
 		$onewire->insertRowToDB("row");
 		$onewire->disconnectFromMySql;
+		$inserted = 1;
 	}
 }
 exit;
