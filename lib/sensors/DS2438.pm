@@ -89,6 +89,7 @@ sub printAllMeasurements {
 sub insertRowToDB {
 	my ( $self,$dbh ) = @_;
 	if ( defined $dbh ) {
+		$self->SUPER::insertRowToDB($dbh);
 		DateTime::TimeZone->names_in_country( "SE" );
 		my $dt = DateTime->now;
 		$dt->set_time_zone( 'Europe/Stockholm' );

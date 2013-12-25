@@ -103,88 +103,62 @@ function connect($sql)
 	}
 }
 
+function stripslashes_array(&$arr) {
+	echo "arr=$arr<br>";
+	foreach ($arr as $k => &$v) {
+		$nk = stripslashes($k);
+		if ($nk != $k) {
+			$arr[$nk] = &$v;
+			unset($arr[$k]);
+		}
+		if (is_array($v)) {
+			stripslashes_array($v);
+		} else {
+			$arr[$nk] = stripslashes($v);
+		}
+	}
+}
+
 function encode_single_query_result($queryobj)
 {
 	$query = mysql_real_escape_string(trim($queryobj));
-	$sqlresult = mysql_query($query) or die("Query failed with error: ".mysql_error() . " Query = " . $query . ", This is the only query");
+//	echo "Single query: $query<br>";
+//	echo "<br><br>";
+	$query = stripslashes($query);		// pga jsonstr fuckar upp det
+	$logging = write_log("Single Query: '$query'");
+
+	$matches = array();
+	$column = array();
+	if (preg_match("/SELECT (.+) FROM/i", $query,$matches)) {
+		$columnstr = $matches[1];
+		$column = explode(",", $columnstr);
+		$i = 0;
+		foreach ($column as $col){
+			$logging = write_log("Col $i: $column[$i]");
+			$i++;
+		}
+	}
+	$result = array();
+	$sqlresult = mysql_query($query) or die("Single query failed with error: ".mysql_error() . " Query = " . $query . "<br><br>");
+	
 	While ($raw = mysql_fetch_array ($sqlresult,MYSQL_ASSOC)){	// This is really slow
-		$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
-		if (preg_match("/MAX/i", $query) and preg_match("/MIN\(/i", $query)) {
-			if (preg_match("/WifiSignal/i", $query)) {
-				$point = array($time,floatval($raw['MAX(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-			}elseif (preg_match("/WifiQuality/i", $query)){
-				$point = array($time,floatval($raw['MAX(WifiQuality)']),floatval($raw['MIN(WifiQuality)']));
-			}elseif (preg_match("/Temperature/i", $query)){
-				$point = array($time,floatval($raw['MAX(Temperature)']),floatval($raw['MIN(Temperature)']));
-			}elseif (preg_match("/CPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MAX(CPUTemp)']),floatval($raw['MIN(CPUTemp)']));
-			}elseif (preg_match("/GPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MAX(GPUTemp)']),floatval($raw['MIN(GPUTemp)']));
-			}
-//			$logging = write_log("Vi har gjort MIN/MAX singlequery" . PHP_EOL);
-		}elseif (preg_match("/MAX/i", $query)) {
-			if (preg_match("/WifiSignal/i", $query)) {
-				$point = array($time,floatval($raw['MAX(WifiSignal)']));
-			}elseif (preg_match("/WifiQuality/i", $query)){
-				$point = array($time,floatval($raw['MAX(WifiQuality)']));
-			}elseif (preg_match("/Temperature/i", $query)){
-				$point = array($time,floatval($raw['MAX(Temperature)']));
-			}elseif (preg_match("/CPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MAX(CPUTemp)']));
-			}elseif (preg_match("/GPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MAX(GPUTemp)']));
-			}
-//			$logging = write_log("Vi har gjort MAX singlequery");
-		}elseif (preg_match("/MIN\(/i", $query)) {
-			if (preg_match("/WifiSignal/i", $query)) {
-				$point = array($time,floatval($raw['MIN(WifiSignal)']));
-			}elseif (preg_match("/WifiQuality/i", $query)){
-				$point = array($time,floatval($raw['MIN(WifiQuality)']));
-			}elseif (preg_match("/Temperature/i", $query)){
-				$point = array($time,floatval($raw['MIN(Temperature)']));
-			}elseif (preg_match("/CPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MIN(CPUTemp)']));
-			}elseif (preg_match("/GPUTemp/i", $query)){
-				$point = array($time,floatval($raw['MIN(GPUTemp)']));
-			}
-//			$logging = write_log("Vi har gjort MIN singlequery");
-		}elseif (preg_match("/AVG/i", $query)) {
-			if (preg_match("/WifiSignal/i", $query)) {
-				$point = array($time,floatval($raw['AVG(WifiSignal)']));
-			}elseif (preg_match("/WifiQuality/i", $query)){
-				$point = array($time,floatval($raw['AVG(WifiQuality)']));
-			}elseif (preg_match("/Temperature/i", $query)){
-				$point = array($time,floatval($raw['AVG(Temperature)']));
-			}elseif (preg_match("/CPUTemp/i", $query)){
-				$point = array($time,floatval($raw['AVG(CPUTemp)']));
-			}elseif (preg_match("/GPUTemp/i", $query)){
-				$point = array($time,floatval($raw['AVG(GPUTemp)']));
-			}
-
-//			$logging = write_log("Vi har gjort AVG singlequery");
+/*		if (preg_match("/as Day/i", $query)) {
+			$time = strtotime($raw['Day']) * 1000;	// javascript uses milli seconds
+		} elseif (preg_match("/as Week/i", $query)) {
+			$time = strtotime($raw['Week']) * 1000;	// javascript uses milli seconds
+		} elseif (preg_match("/as Month/i", $query)) {
+			$time = strtotime($raw['Month']) * 1000;	// javascript uses milli seconds
 		}else {
-			if (preg_match("/WifiSignal/i", $query)) {
-				$point = array($time,floatval($raw['WifiSignal']));
-			}elseif (preg_match("/WifiQuality/i", $query)){
-				$point = array($time,floatval($raw['WifiQuality']));
-			}elseif (preg_match("/Temperature/i", $query)){
-				$point = array($time,floatval($raw['Temperature']));
-			}elseif (preg_match("/CPUTemp/i", $query)){
-				$point = array($time,floatval($raw['CPUTemp']));
-			}elseif (preg_match("/GPUTemp/i", $query)){
-				$point = array($time,floatval($raw['GPUTemp']));
-			}
-
+			$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
 		}
-
-
-		
-/*		if (preg_match("/MAX|MIN/i", $query)) {
-			$point = array($time,floatval($raw['MAX(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-		} else {
-			$point = array($time,floatval($raw['WifiSignal']));
+*/
+		$time = strtotime($raw["$column[0]"]) * 1000;	// javascript uses milli seconds
+		if (preg_match("/MAX/i", $query) and preg_match("/MIN\(/i", $query)) {
+			$point = array($time,floatval($raw["$column[1]"]),floatval($raw["$column[2]"]));
+		}else{
+			$point = array($time,floatval($raw["$column[1]"]));
 		}
-*/		$result[] = $point;
+		$result[] = $point;
 	} // end while
 	$jsonstr = json_encode($result);
 	return $jsonstr;
@@ -192,88 +166,41 @@ function encode_single_query_result($queryobj)
 
 function encode_multiple_query_results($queryobj)
 {
+//	echo "Single query: $query<br>";
+//	echo "<br><br>";
+//	var $query = array();
+//	$query = stripslashes_array($queryobj);		// pga jsonstr fuckar upp det
+
 	$result = array();
 	for ( $counter = 0; $counter < count($queryobj); $counter ++) {
 		$q1time = microtime(true);
 		$query = mysql_real_escape_string(trim($queryobj[$counter]));
+		$logging = write_log("Multiple Query $counter: '$query'");
+
+		$matches = array();
+		$column = array();
+		if (preg_match("/SELECT (.+) FROM/i", $query,$matches)) {
+			$columnstr = $matches[1];
+			$column = explode(",", $columnstr);
+			$i = 0;
+			foreach ($column as $col){
+				$logging = write_log("Col $i: $column[$i]");
+				$i++;
+			}
+		}
 		$sqlresult = mysql_query($query) or die("Query failed with error: ".mysql_error() . " Query = " . $query . ", Query no: " . $counter);
 		$q2time = microtime(true);
 		$rows = mysql_num_rows($sqlresult) or die(mysql_error());
 		$logging = write_log("Query result received, rows=$rows");
 		While ($raw = mysql_fetch_array ($sqlresult,MYSQL_ASSOC)){	// This is really slow
-			$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
+//			$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
+			$time = strtotime($raw["$column[0]"]) * 1000;	// javascript uses milli seconds
 			if (preg_match("/MAX/i", $query) and preg_match("/MIN\(/i", $query)) {
-				if (preg_match("/WifiSignal/i", $query)) {
-					$point = array($time,floatval($raw['MIN(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-				}elseif (preg_match("/WifiQuality/i", $query)){
-					$point = array($time,floatval($raw['MIN(WifiQuality)']),floatval($raw['MIN(WifiQuality)']));
-				}elseif (preg_match("/Temperature/i", $query)){
-					$point = array($time,floatval($raw['MIN(Temperature)']),floatval($raw['MIN(Temperature)']));
-				}elseif (preg_match("/CPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MAX(CPUTemp)']),floatval($raw['MIN(CPUTemp)']));
-				}elseif (preg_match("/GPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MAX(GPUTemp)']),floatval($raw['MIN(GPUTemp)']));
-				}
-//				$logging = write_log("Vi har gjort MIN/MAX multiquery" . PHP_EOL);
-			}elseif (preg_match("/MAX/i", $query)) {
-				if (preg_match("/WifiSignal/i", $query)) {
-					$point = array($time,floatval($raw['MAX(WifiSignal)']));
-				}elseif (preg_match("/WifiQuality/i", $query)){
-					$point = array($time,floatval($raw['MAX(WifiQuality)']));
-				}elseif (preg_match("/Temperature/i", $query)){
-					$point = array($time,floatval($raw['MAX(Temperature)']));
-				}elseif (preg_match("/CPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MAX(CPUTemp)']));
-				}elseif (preg_match("/GPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MAX(GPUTemp)']));
-				}
-//				$logging = write_log("Vi har gjort MAX multiquery");
-			}elseif (preg_match("/MIN\(/i", $query)) {
-				if (preg_match("/WifiSignal/i", $query)) {
-					$point = array($time,floatval($raw['MIN(WifiSignal)']));
-				}elseif (preg_match("/WifiQuality/i", $query)){
-					$point = array($time,floatval($raw['MIN(WifiQuality)']));
-				}elseif (preg_match("/Temperature/i", $query)){
-					$point = array($time,floatval($raw['MIN(Temperature)']));
-				}elseif (preg_match("/CPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MIN(CPUTemp)']));
-				}elseif (preg_match("/GPUTemp/i", $query)){
-					$point = array($time,floatval($raw['MIN(GPUTemp)']));
-				}
-//				$logging = write_log("Vi har gjort MIN multiquery");
-			}elseif (preg_match("/AVG/i", $query)) {
-				if (preg_match("/WifiSignal/i", $query)) {
-					$point = array($time,floatval($raw['AVG(WifiSignal)']));
-				}elseif (preg_match("/WifiQuality/i", $query)){
-					$point = array($time,floatval($raw['AVG(WifiQuality)']));
-				}elseif (preg_match("/Temperature/i", $query)){
-					$point = array($time,floatval($raw['AVG(Temperature)']));
-				}elseif (preg_match("/CPUTemp/i", $query)){
-					$point = array($time,floatval($raw['AVG(CPUTemp)']));
-				}elseif (preg_match("/GPUTemp/i", $query)){
-					$point = array($time,floatval($raw['AVG(GPUTemp)']));
-				}
-//				$logging = write_log("Vi har gjort AVG multiquery");
+				$point = array($time,floatval($raw["$column[1]"]),floatval($raw["$column[2]"]));
 			}else {
-				if (preg_match("/WifiSignal/i", $query)) {
-					$point = array($time,floatval($raw['WifiSignal']));
-				}elseif (preg_match("/WifiQuality/i", $query)){
-					$point = array($time,floatval($raw['WifiQuality']));
-				}elseif (preg_match("/Temperature/i", $query)){
-					$point = array($time,floatval($raw['Temperature']));
-				}elseif (preg_match("/CPUTemp/i", $query)){
-					$point = array($time,floatval($raw['CPUTemp']));
-				}elseif (preg_match("/GPUTemp/i", $query)){
-					$point = array($time,floatval($raw['GPUTemp']));
-				}
+				$point = array($time,floatval($raw["$column[1]"]));
 			}
-			
-/*			if (preg_match("/MAX|MIN/i", $query)) {
-				$point = array($time,floatval($raw['MIN(WifiSignal)']),floatval($raw['MIN(WifiSignal)']));
-			} else {
-				$point = array($time,floatval($raw['WifiSignal']));
-			}
-*/
+
 			$result[$counter][] = $point;
 		} // end while
 	} // end for
@@ -342,29 +269,6 @@ $logging = write_log("server.php startar: $start");
 	}else{
 		echo $jsonResponse;
 	}
-
-
-
-
-//		$result = array();
-//		for ( $counter = 0; $counter < count($queryobj); $counter ++) {
-//			$q1time = microtime(true);
-//			$query = mysql_real_escape_string(trim($queryobj[$counter]));
-//$query=$queryobj[$counter];
-//			$sqlresult = mysql_query($query) or die("Query failed with error: ".mysql_error() . " Query = " . $query . ", Query no: " . $counter);
-//			$q2time = microtime(true);
-//			$rows = mysql_num_rows($sqlresult) or die(mysql_error());
-//			$logging = write_log("Query result received, rows=$rows");
-//			While ($raw = mysql_fetch_array ($sqlresult,MYSQL_ASSOC)){	// This is really slow
-
-//				$time = strtotime($raw['TimeStamp']) * 1000;	// javascript uses milli seconds
-//				$point = array($time,floatval($raw['Temperature']));
-//				$result[$counter][] = $point;
-
-//			} // end while
-//		}
-//		$jsonstr = json_encode($result);
-//		echo $jsonstr;
 
 	$time = microtime();
 	$time = explode(' ', $time);

@@ -7,7 +7,7 @@ use Switch;
 use DBI;
 use DBD::mysql;
 use DBI qw(:sql_types);
-
+use Sys::Syslog;
 
 use DS18B20;
 use DS18S20;
@@ -167,6 +167,20 @@ sub printAllMeasurements {
 	}
 }
 
+sub logit {
+	my ($priority, $msg) = @_; 
+	return 0 unless ($priority =~ /info|err|debug/);
+	setlogsock('unix');
+	my $programname = $0;
+	my $pid = $$;
+	# $programname is assumed to be a global.  Also log the PID
+	# and to CONSole if there's a problem.  Use facility 'user'.
+	openlog($programname, 'pid,cons', 'user');
+	syslog($priority, $msg);
+	closelog();
+	return 1;
+}
+
 sub connectToMySql {
 	my( $self,$accessfile ) = @_;
 	open(ACCESS_INFO, "<$accessfile") || die "Can't access login credentials";
@@ -179,13 +193,31 @@ sub connectToMySql {
 	chomp $host;
 	chomp $userid;
 	chomp $passwd;
-	my $dbh = DBI->connect(
+
+	my $dbh;
+	until ( $dbh = DBI->connect(
 		"DBI:mysql:database=$database;host=$host",
 		"$userid",
 		"$passwd",
-		{ RaiseError => 1, AutoCommit => 1 },
-	) or die "Could not connect to database: $DBI::errstr";;
+		{ RaiseError => 0, AutoCommit => 1, PrintError => 0 },
+	)) {
+		warn "Can't connect: $DBI::errstr. Pausing before retrying.\n";
+		logit('err', "Error connecting to db $database at hot $host: $!");
+		sleep( 5 );
+	}
 
+      eval {      ### Catch _any_ kind of failures from the code within
+
+          ### Enable auto-error checking on the database handle
+          $dbh->{PrintError} = 1;
+          $dbh->{RaiseError} = 1;
+
+	}; warn "Monitoring aborted by error: $@\n" if $@;
+
+# or die "Could not connect to database: $DBI::errstr";;
+
+	$dbh->{PrintError} = 1;
+	$dbh->{RaiseError} = 1;
 	$self->{_dbh} = $dbh;
 	print "Connected successfully to SQL DB\n";
 	return $self;

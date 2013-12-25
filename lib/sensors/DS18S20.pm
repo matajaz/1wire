@@ -41,6 +41,7 @@ sub insertToSQL {
 sub insertRowToDB {
 	my ( $self,$dbh ) = @_;
 	if ( defined $dbh ) {
+		$self->SUPER::insertRowToDB($dbh);
 		my $temp = sprintf("%.1f",$self->{_temperature});
 		DateTime::TimeZone->names_in_country( "SE" );
 		my $dt = DateTime->now;

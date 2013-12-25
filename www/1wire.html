@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		
+		<title>Mathias temperaturmätningar</title>
+
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+		<script type="text/javascript">
+			$(function() {
+				var dataSeries = [],
+				yAxisOptions = [],
+				seriesCounter = 0,
+				names = ['ReadFailureRate (anlis_rum)','ReadFailureRate (sovrum)', 'ReadFailureRate (guestroom)', 'ReadFailureRate (elmatare)', 'ReadFailureRate (foradstemp)', 'ReadFailureRate (utetemp)', 'ReadFailureRate (arbetsrum)'],
+				temps = ['Max', 'Min', 'Avg'],
+				colors = Highcharts.getOptions().colors;
+
+				var query1 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=1 LIMIT 5000;";
+				var query2 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=5 LIMIT 5000;";
+				var query3 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=6 LIMIT 5000;";
+				var query4 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=10 LIMIT 5000;";
+				var query5 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=12 LIMIT 5000;";
+				var query6 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=15 LIMIT 5000;";
+				var query7 = "SELECT TimeStamp,ReadFailureRate FROM OneWireStats where SensorIndex=25 LIMIT 5000;";
+
+				var query11 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=1 LIMIT 5000;";
+				var query12 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=5 LIMIT 5000;";
+				var query13 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=6 LIMIT 5000;";
+				var query14 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=10 LIMIT 5000;";
+				var query15 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=12 LIMIT 5000;";
+				var query16 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=15 LIMIT 5000;";
+				var query17 = "SELECT TimeStamp,ReadAttempts FROM OneWireStats where SensorIndex=25 LIMIT 5000;";
+
+				var queries = new Array(query1,query2,query3,query4,query5,query6,query7);
+				var jsonstr = JSON.stringify(queries);
+				var queries2 = new Array(query11,query12,query13,query14,query15,query16,query17);
+				var jsonstr2 = JSON.stringify(queries2);
+
+				var url = "/dev/server.php";
+
+				var dataSeries1 = [];
+				var dataSeries2 = [];
+				var dataSeries3 = [];
+				
+				var returned = 0;
+
+				function completed() {
+					console.log("Complete "+returned);
+				}
+
+				function callBackReadFailureRate(retData) {
+					returned++;
+					console.log(":-).A: returned="+returned);
+					
+					$.each( retData, function( key, val ) {
+						console.log(":-).A: returned="+returned+", key="+key);
+						dataSeries1[key] = {
+							name: names[key],
+							data: val,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}
+					});
+					console.log("Length of dataseries1 = " + dataSeries1.length);
+					createChart();
+					completed();
+				}
+
+				function callBackReadAttempts(retData) {
+					returned++;
+					console.log(":-).B: returned="+returned);
+					
+					$.each( retData, function( key, val ) {
+						console.log(":-).B: returned="+returned+", key="+key);
+						dataSeries2[key] = {
+							name: names[key],
+							data: val,
+							tooltip: {
+								valueDecimals: 2
+							}
+						}
+					});
+					console.log("Length of dataseries2 = " + dataSeries2.length);
+					createChart2();
+					completed();
+				}
+
+				function cloneObject(source) {
+					for (i in source) {
+						if (typeof source[i] == 'source') {
+							this[i] = new cloneObject(source[i]);
+						}
+						else{
+							this[i] = source[i];
+						}
+					}
+				}
+
+				function errorMsg(err) {
+					returned++;
+					console.log("BAD ENDING: " + err + ",	returned="+returned); 
+				}
+				
+
+				$.ajax(url+"?callback=callBackReadFailureRate&json="+jsonstr, { 
+					data: {"id": "cb1"},
+					dataType: 'jsonp', 
+					success: callBackReadFailureRate,
+					error: errorMsg 
+				});
+				$.ajax(url+"?callback=callBackReadAttempts&json="+jsonstr2, { 
+					data: {"id": "cb2"},
+					dataType: 'jsonp', 
+					success: callBackReadAttempts,
+					error: errorMsg 
+				});
+
+				function createChart() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: 'failurerate'
+						},
+						title : {
+							text : '1wire ReadFailure Rate'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + '%';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								second: '%Y-%m-%d<br>%H:%M:%S',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+//							series: {
+//								compare: 'percent'
+//							},
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}%</b><br/>',
+							valueDecimals: 2
+						},
+						series: dataSeries1
+					});
+				}	// end createchart function
+
+				function createChart2() {
+					chart1 = new Highcharts.StockChart({
+						chart: {
+							renderTo: 'readattempts'
+						},
+						title : {
+							text : '1wire Read Attempts'
+						},
+						yAxis: {
+							labels: {
+								formatter: function() {
+									return (this.value > 0 ? '+' : '') + this.value + '';
+								}
+							},
+							plotLines: [{
+								value: 0,
+								width: 2,
+								color: 'silver'
+							}]
+						},
+						xAxis: {
+							type: 'datetime',
+							dateTimeLabelFormats: {
+								second: '%Y-%m-%d<br>%H:%M:%S',
+							}
+						},
+						rangeSelector : {
+							buttons : [{
+									type : 'hour',
+									count : 1,
+									text : '1h'
+								}, {
+									type : 'day',
+									count : 1,
+									text : '1d'
+								}, {
+									type : 'week',
+									count : 1,
+									text : '1w'
+								}, {
+									type : 'week',
+									count : 3,
+									text : '3w'
+								}, {
+									type : 'month',
+									count : 1,
+									text : '1m'
+								}, {
+									type : 'month',
+									count : 3,
+									text : '3m'
+								}, {
+									type : 'all',
+									count : 1,
+									text : 'All'
+							}],
+							selected : 6,
+							inputEnabled : false
+						},
+						plotOptions: {
+							spline: {
+								turboThreshold: 20000,
+							}
+						},
+						tooltip: {
+							pointFormat: '<span style="color:{series.color}">{series.name}</span>: <b>{point.y}</b><br/>',
+							valueDecimals: 2
+						},
+						series: dataSeries2
+					});
+				}	// end createchart function
+
+			});     // end $function
+		
+		</script>
+        		
+		<style type="text/css"></style><style type="text/css"></style><script>window["_GOOG_TRANS_EXT_VER"] = "1";</script>
+	</head>
+	<body>
+		<script src="/js/highstock.js"></script>
+		<script src="/js/highcharts-more.js"></script>
+		<script src="/js/modules/exporting.js"></script>
+		
+ 		<div id="failurerate" style="height: 500px; min-width: 500px"> </div>
+                <div id="divB" style="height: 10px; min-width: 500px"> </div>
+		<div id="readattempts" style="height: 500px; min-width: 500px"> </div>
+                <div id="divC" style="height: 10px; min-width: 500px"> </div>
+		<div id="div3" style="height: 500px; min-width: 500px"> </div>
+                <div id="divD" style="height: 10px; min-width: 500px"> </div>
+		<div class="canvas"></div>
+
+	</body>
+</html>
