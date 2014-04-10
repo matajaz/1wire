@@ -539,6 +539,12 @@ git remote add origin https://github.com/matajaz/1wire.git
 git pull 1wire master
 git remote add origin https://github.com/matajaz/1wire.git
 git push origin master
+.
+.
+.
+git add README.txt
+git commit -m "README updated with git info"
+git push origin master
 
 https://help.github.com/articles/create-a-repo
 
