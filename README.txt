@@ -1,8 +1,193 @@
-Create a user called mathias with all priviliges
-================================================
+create a user called mathias with sudo priviliges and remove i user
+===================================================================
+sudo adduser mathias
+sudo adduser mathias sudo
+sudo deluser -remove-home pi
 
+Upgrade raspberrypi
+===================
+sudo apt-get update
+sudo apt-get upgrade
+sudo rpi-update
+sudo reboot
+ifconfig -a
+sudo ifup wlan0
+ifconfig -a
+
+Create iptabled firewall
+========================
+Create the file /etc/iptables.conf
+# Allows all loopback (lo0) traffic and drop all traffic to 127/8 that doesn't use lo0
+-A INPUT -i lo -j ACCEPT
+-A INPUT ! -i lo -d 127.0.0.0/8 -j REJECT
+-A INPUT -i wlan0 -j ACCEPT
+-A INPUT -i eth0 -j ACCEPT
+#-A INPUT ! -i wlan0 -d 127.0.0.0/8 -j REJECT
+
+# Accepts all established inbound connections
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allows all outbound traffic
+# You could modify this to only allow certain traffic
+-A OUTPUT -j ACCEPT
+
+# Allows HTTP and HTTPS connections from anywhere (the normal ports for websites)
+-A INPUT -p tcp --dport 80 -j ACCEPT
+-A INPUT -p tcp --dport 443 -j ACCEPT
+
+# Allows SSH connections
+# THE -dport NUMBER IS THE SAME ONE YOU SET UP IN THE SSHD_CONFIG FILE
+-A INPUT -p tcp -m state --state NEW --dport 22000 -j ACCEPT
+
+# Now you should read up on iptables rules and consider whether ssh access
+# for everyone is really desired. Most likely you will only allow access from certain IPs.
+
+# Allow ping
+-A INPUT -p icmp -m icmp --icmp-type 8 -j ACCEPT
+
+# log iptables denied calls (access via 'dmesg' command)
+-A INPUT -m limit --limit 5/min -j LOG --log-prefix "iptables denied: " --log-level 7
+
+# Reject all other inbound - default deny unless explicitly allowed policy:
+-A INPUT -j REJECT
+-A FORWARD -j REJECT
+
+COMMIT
+
+
+Save firewall configuration
+---------------------------
+sudo sh -c "iptables-save > /etc/iptables.rules"
+
+Make it startup at boot
+-----------------------
+sudo nano /etc/network/interfaces
+pre-up iptables-restore < /etc/network/iptables
+
+alt:
+pre-up iptables-restore < /etc/iptables.rules
+post-down iptables-restore < /etc/iptables.downrules
+
+
+Installera OWFS
+===============
+http://wiki.temperatur.nu/index.php/OWFS_p%C3%A5_Rasperry_Pi
+sudo apt-get install owfs
+sudo mkdir /mnt/1wire
+cd /etc/init.d
+sudo nano start1wire.sh
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          start1wire
+# Required-Start:    $local_fs $syslog
+# Required-Stop:     $local_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start OWFS at boot time
+# Description:       Start OWFS at boot time
+### END INIT INFO
+
+# Starts OWFS
+/usr/bin/owfs --i2c=ALL:ALL --allow_other /mnt/1wire
+
+sudo chmod +x start1wire.sh
+sudo update-rc.d start1wire.sh defaults
+
+Mount other rasperrby pis
+=========================
+mkdir /home/mathias/hallon1
+mkdir /home/mathias/hallon2
+mkdir /home/mathias/hallon3
+mkdir /home/mathias/hallon4
+mkdir /home/mathias/hallon5
+
+sshfs pi@hallon1:/home/pi /home/mathias/hallon1
+sshfs mathias@hallon2:/home/mathias /home/mathias/hallon2
+sshfs mathias@hallon3:/home/mathias /home/mathias/hallon3
+sshfs mathias@hallon4:/home/mathias /home/mathias/hallon4
+sshfs mathias@hallon5:/home/mathias /home/mathias/hallon5
+
+Kopiera filer från hallon1
+==========================
+cp -r hallon1/bin/1wire hallon2/bin/
+cp -r hallon1/bin/1wire hallon3/bin/
+cp -r hallon1/bin/1wire hallon4/bin/
+cp -r hallon1/bin/1wire hallon5/bin/
+
+Gör så att scripten startas automatiskt
+=======================================
+sudo nano /etc/init.d/1wire.sh
+
+### BEGIN INIT INFO
+# Provides:          1wire.sh
+# Required-Start:    $remote_fs $syslog $all
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Simple script to start a program at boot
+# Description:       A simple script that will start/stop 1wire measurements at boot/shutdown.
+### END INIT INFO
+
+# If you want a command to always run, put it here
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    echo "Starting 1wire"
+    logger 1wire measurements started
+    # run application you want to start
+	cd /home/pi/bin/
+	/home/pi/bin/1wire/1wire.pl
+    ;;
+  stop)
+    echo "Stopping 1wire"
+    logger 1wire measurements stopped
+    # kill application you want to stop
+    killall 1wire.pl
+    ;;
+  *)
+    echo "Usage: /etc/init.d/1wire.sh {start|stop}"
+    logger Wrong usage of /etc/init.d/1wire.sh
+    exit 1
+    ;;
+esac
+
+exit 0
+
+Gör scriptet exekverbart
+------------------------
+sudo chmod +x /etc/init.d/1wire.sh
+
+Se till att det startas vid boot
+--------------------------------
+sudo update-rc.d 1wire.sh defaults
+
+
+Installera mysql
+================
+sudo apt-get install mysql-server mysql-client libmysqlclient-dev
+
+Installera perl moduler
+=======================
+sudo perl -MCPAN -e shell
+install CPAN
+reload cpan
+install DBI DBD::mysql DateTime
+
+install DBI
+install DBD
+install DateTime
+
+Ta bort root pwd för sql om nödvändigt
+--------------------------------------
+mysqladmin -u root -pCURRENTPASSWORD password ''
+
+Create a SQL user called mathias with all priviliges
+====================================================
 apt-get install mysql-server mysql-client
 mysql -u root -p
+
 
 mysql> CREATE USER 'mathias'@'localhost' IDENTIFIED BY 'AldriN1972';
 Query OK, 0 rows affected (0.01 sec)
@@ -22,6 +207,7 @@ mysql> SHOW GRANTS FOR 'mathias'@'localhost';
 | Grants for mathias@localhost                                                                                                              |
 +-------------------------------------------------------------------------------------------------------------------------------------------+
 | GRANT ALL PRIVILEGES ON *.* TO 'mathias'@'localhost' IDENTIFIED BY PASSWORD '*A2CB4C7C4CA62B8A5D92CA9EF5ECB018B6C277B3' WITH GRANT OPTION |
+
 +-------------------------------------------------------------------------------------------------------------------------------------------+
 1 row in set (0.00 sec)
 
@@ -249,6 +435,11 @@ mysql -h hallon1 -u mathias -p
 ref:
 http://www.raspberrypi.org/phpBB3/viewtopic.php?f=36&t=20214
 
+Backup DB
+=========
+crontab -e
+35 2 * * * mysqldump -u mathias -pAldriN1972 -h hallon1 --databases measure | gzip > /home/mathias/sqldb/database_`date '+%m-%d-%Y'`.sql.gz
+
 
 Firewall
 ========
@@ -334,24 +525,21 @@ https://wiki.debian.org/iptables
 
 
 
-Make 1wire script starts at boot
-================================
-http://www.stuffaboutcode.com/2012/06/raspberry-pi-run-program-at-start-up.html
+GIT info
+========
+mkdir ~/1wire
+cd ~/1wire
+git init
+git add README
+git commit -m 'first commit'
+git remote add origin https://github.com/matajaz/1wire.git
+.
+.
+.
+git pull 1wire master
+git remote add origin https://github.com/matajaz/1wire.git
+git push origin master
 
-Make script executable
-	sudo chmod 755 /etc/init.d/1wire.sh
+https://help.github.com/articles/create-a-repo
 
-Test starting the program
-	sudo /etc/init.d/1wire.sh start
 
-Test stopping the program
-	sudo /etc/init.d/1wire.sh stop
-
-Register script to be run at start-up
-To register your script to be run at start-up and shutdown, run the following command:
-	sudo update-rc.d 1wire.sh defaults
-
-Note - The header at the start is to make the script LSB compliant and provides details about the start up script and you should only need to change the name.  If you want to know more about creating LSB scripts for managing services, see http://wiki.debian.org/LSBInitScripts
-
-If you ever want to remove the script from start-up, run the following command:
-	sudo update-rc.d -f 1wire.sh remove
